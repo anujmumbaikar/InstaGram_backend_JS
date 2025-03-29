@@ -151,5 +151,61 @@ const editUserProfile = asyncHandler(async (req, res) => {
         .status(200)
         .json(new ApiResponse(200, updatedUser, "Account details updated successfully"));
 });
-
-export {registerUser, login,logout,editUserProfile}
+const userfollowersAndFollowings = asyncHandler(async (req, res) => {
+    const {username} = req.params;
+    if(!username){
+        throw new ApiError(400,"Unable to get user")
+    }
+    const getFollowersAndFollowings = await User.aggregate([
+        {
+            $match:{
+                username:username
+            }
+        },
+        {
+            $lookup:{
+                from:"followers",
+                localField:"_id",
+                foreignField:"userfollowing",
+                as:"followersOfUser"
+            }
+        },
+        {
+            $lookup:{
+                from:"followers",
+                localField:"_id",
+                foreignField:"userfollowers",
+                as:"followingsOfUser"
+            }
+        },
+        {
+            $addFields:{
+                followersCount:{$size:"$followersOfUser"},
+                followingsCount:{$size:"$followingsOfUser"},
+                ifFollowing:{
+                    $cond:{
+                        if: { $in: [req.user?._id, "$followersOfUser.userfollowers"] },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullname: 1,
+                username: 1,
+                avatar: 1,
+                bio: 1,
+                followersCount: 1,
+                followingsCount: 1,
+                isFollowing: 1
+            }
+        }
+    ])
+    if(!getFollowersAndFollowings){
+        throw new ApiError(404,"Unable to get followers and followings")
+    }
+    return res.status(200).json(new ApiResponse(200,getFollowersAndFollowings,"Followers and followings fetched successfully"))
+})
+export {registerUser, login,logout,editUserProfile,userfollowersAndFollowings}
