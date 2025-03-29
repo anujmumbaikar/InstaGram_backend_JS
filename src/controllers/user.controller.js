@@ -75,5 +75,74 @@ const login = asyncHandler(async (req, res) => {
     res.status(200).cookie("refreshToken", refreshToken, options).cookie("accessToken", accessToken, options)
     .json(new ApiResponse(200,"User logged in successfully"))
 })
+const logout = asyncHandler(async (req, res) => {
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {refreshToken: ""},
+        {new: true}
+    )
+    const options = {
+        httpOnly: true,
+        secure: true,
+    }
+    return res.status(200).clearCookie("accessToken",options).clearCookie("refreshToken",options).
+    json(new ApiResponse(200,{},"user logged out"))
+})
+const editUserProfile = asyncHandler(async (req, res) => {
+    const {
+        fullname,
+        username,
+        email,
+        password,
+        address,
+        gender,
+        bio,
+        phone
+    } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+    if (email && email !== user.email) {
+        const existingEmailUser = await User.findOne({ email });
+        if (existingEmailUser && existingEmailUser._id.toString() !== req.user._id.toString()) {
+            throw new ApiError(409, "Email already exists");
+        }
+    }
+    if (username && username !== user.username) {
+        const existingUsernameUser = await User.findOne({ username });
+        if (existingUsernameUser && existingUsernameUser._id.toString() !== req.user._id.toString()) {
+            throw new ApiError(409, "Username already exists");
+        }
+    }
+    if (password && user.password && await user.isPasswordCorrect(password)) {
+        throw new ApiError(400, "New password cannot be the same as the old password");
+    }
 
-export {registerUser, login}
+    const updates = {};
+    if (fullname) updates.fullname = fullname;
+    if (username) updates.username = username;
+    if (email) updates.email = email;
+    if (password) updates.password = password;
+    if (address) updates.address = address;
+    if (gender) updates.gender = gender;
+    if (bio) updates.bio = bio;
+    if (phone) updates.phone = phone;
+
+    const updatedUser = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: updates,
+        },
+        { new: true, runValidators: true }
+    ).select("-password -refreshToken");
+
+    if (!updatedUser) {
+        throw new ApiError(500, "Failed to update user profile");
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updatedUser, "Account details updated successfully"));
+});
+export {registerUser, login,logout,editUserProfile}

@@ -1,6 +1,7 @@
-import {upload} from "./multer.middleware.js";
 import {asyncHandler} from "../utils/asyncHandler.js";
 import {User} from "../models/user.model.js";
+import { ApiError } from "../utils/apiError.js";
+import jwt from 'jsonwebtoken'
 export const verifyJWT = asyncHandler(async (req,res,next)=>{
     try {
         const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ","")
@@ -16,6 +17,6 @@ export const verifyJWT = asyncHandler(async (req,res,next)=>{
         next()
     } catch (error) {
         throw new ApiError(401,"Invalid access")
-        
+
     }
 })
