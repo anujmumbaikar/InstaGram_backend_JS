@@ -4,9 +4,7 @@ import {User} from "../models/user.model.js";
 import { Post } from "../models/post.model.js";
 import {asyncHandler} from '../utils/asyncHandler.js';
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
-import {Like} from '../models/likes.model.js'
-import {Comment} from '../models/comments.model.js'
-import mongoose, { mongo } from "mongoose";
+import mongoose from "mongoose";
 const postUpload = asyncHandler(async (req, res) => {
     const { caption } = req.body;
     if (!caption) {
@@ -52,16 +50,17 @@ const getPostById = asyncHandler(async (req, res) => {
     if (!postId) {
         throw new ApiError(400, "Post ID is required");
     }
+
     const postInformation = await Post.aggregate([
         {
             $match: {
-                _id:new mongoose.Types.ObjectId(postId)
+                _id: new mongoose.Types.ObjectId(postId)
             }
         },
         {
             $lookup: {
                 from: "likes",
-                localField: "_id", 
+                localField: "_id",
                 foreignField: "post",
                 as: "likes"
             }
@@ -69,9 +68,25 @@ const getPostById = asyncHandler(async (req, res) => {
         {
             $lookup: {
                 from: "comments",
-                localField: "_id", 
-                foreignField: "post", 
-                as: "comments" 
+                localField: "_id",
+                foreignField: "post",
+                as: "comments"
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "likes.user",
+                foreignField: "_id",
+                as: "likedUsers"
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "comments.user",
+                foreignField: "_id",
+                as: "commentedUsers"
             }
         },
         {
@@ -80,16 +95,22 @@ const getPostById = asyncHandler(async (req, res) => {
                 commentsCount: { $size: "$comments" },
                 usersWhoLiked: {
                     $map: {
-                        input: "$likes",
-                        as: "like",
-                        in: "$$like.user"
+                        input: "$likedUsers",
+                        as: "user",
+                        in: {
+                            username: "$$user.username",
+                            avatar: "$$user.avatar"
+                        }
                     }
                 },
                 usersWhoCommented: {
                     $map: {
-                        input: "$comments",
-                        as: "comment",
-                        in: "$$comment.user"
+                        input: "$commentedUsers",
+                        as: "user",
+                        in: {
+                            username: "$$user.username",
+                            avatar: "$$user.avatar"
+                        }
                     }
                 }
             }
@@ -108,13 +129,13 @@ const getPostById = asyncHandler(async (req, res) => {
             }
         }
     ]);
-
     if (!postInformation || postInformation.length === 0) {
         throw new ApiError(404, "Post not found");
     }
 
     return res.status(200).json(new ApiResponse(200, postInformation[0], "Post details fetched successfully"));
 });
+
 
 const getUserPosts = asyncHandler(async (req, res) => {
     const { username } = req.params;
