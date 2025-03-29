@@ -151,7 +151,7 @@ const editUserProfile = asyncHandler(async (req, res) => {
         .status(200)
         .json(new ApiResponse(200, updatedUser, "Account details updated successfully"));
 });
-const userfollowersAndFollowings = asyncHandler(async (req, res) => {
+const userProfileInformation = asyncHandler(async (req, res) => {
     const {username} = req.params;
     if(!username){
         throw new ApiError(400,"Unable to get user")
@@ -179,9 +179,18 @@ const userfollowersAndFollowings = asyncHandler(async (req, res) => {
             }
         },
         {
+            $lookup:{
+                from:"posts",
+                localField:"_id",
+                foreignField:"owner",
+                as:"userPosts"
+            }
+        },
+        {
             $addFields:{
                 followersCount:{$size:"$followersOfUser"},
                 followingsCount:{$size:"$followingsOfUser"},
+                userPostsCount:{$size:"$userPosts"},
                 ifFollowing:{
                     $cond:{
                         if: { $in: [req.user?._id, "$followersOfUser.userfollowers"] },
@@ -199,7 +208,11 @@ const userfollowersAndFollowings = asyncHandler(async (req, res) => {
                 bio: 1,
                 followersCount: 1,
                 followingsCount: 1,
-                isFollowing: 1
+                isFollowing: 1,
+                userPostsCount: 1,
+                userPosts: {
+                    $slice: ["$userPosts", 5] // Limit to 5 posts
+                },
             }
         }
     ])
@@ -208,4 +221,4 @@ const userfollowersAndFollowings = asyncHandler(async (req, res) => {
     }
     return res.status(200).json(new ApiResponse(200,getFollowersAndFollowings,"Followers and followings fetched successfully"))
 })
-export {registerUser, login,logout,editUserProfile,userfollowersAndFollowings}
+export {registerUser, login,logout,editUserProfile,userProfileInformation}
