@@ -152,50 +152,63 @@ const editUserProfile = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, updatedUser, "Account details updated successfully"));
 });
 const userProfileInformation = asyncHandler(async (req, res) => {
-    const {username} = req.params;
-    if(!username){
-        throw new ApiError(400,"Unable to get user")
+    const { username } = req.params;
+    if (!username) {
+        throw new ApiError(400, "Unable to get user");
     }
     const getFollowersAndFollowings = await User.aggregate([
         {
-            $match:{
-                username:username
+            $match: {
+                username: username
             }
         },
         {
-            $lookup:{
-                from:"followers",
-                localField:"_id",
-                foreignField:"userfollowing",
-                as:"followersOfUser"
+            $lookup: {
+                from: "followers",
+                localField: "_id",
+                foreignField: "userfollowing",
+                as: "followersOfUser"
             }
         },
         {
-            $lookup:{
-                from:"followers",
-                localField:"_id",
-                foreignField:"userfollowers",
-                as:"followingsOfUser"
+            $lookup: {
+                from: "followers",
+                localField: "_id",
+                foreignField: "userfollowers",
+                as: "followingsOfUser"
             }
         },
         {
-            $lookup:{
-                from:"posts",
-                localField:"_id",
-                foreignField:"owner",
-                as:"userPosts"
+            $lookup: {
+                from: "posts",
+                localField: "_id",
+                foreignField: "owner",
+                as: "userPosts"
             }
         },
         {
-            $addFields:{
-                followersCount:{$size:"$followersOfUser"},
-                followingsCount:{$size:"$followingsOfUser"},
-                userPostsCount:{$size:"$userPosts"},
-                ifFollowing:{
-                    $cond:{
+            $addFields: {
+                followersCount: { $size: "$followersOfUser" },
+                followingsCount: { $size: "$followingsOfUser" },
+                userPostsCount: { $size: "$userPosts" },
+                ifFollowing: {
+                    $cond: {
                         if: { $in: [req.user?._id, "$followersOfUser.userfollowers"] },
                         then: true,
                         else: false
+                    }
+                },
+                userPosts: {
+                    $map: {
+                        input: "$userPosts",  // Iterating over the user's posts
+                        as: "post",
+                        in: {
+                            _id: "$$post._id", 
+                            content: "$$post.content", 
+                            caption: "$$post.caption",
+                            createdAt: "$$post.createdAt",
+                            updatedAt: "$$post.updatedAt"
+                        }
                     }
                 }
             }
@@ -210,15 +223,16 @@ const userProfileInformation = asyncHandler(async (req, res) => {
                 followingsCount: 1,
                 isFollowing: 1,
                 userPostsCount: 1,
-                userPosts: {
-                    $slice: ["$userPosts", 5] // Limit to 5 posts
-                },
+                userPosts: 1,
             }
         }
-    ])
-    if(!getFollowersAndFollowings){
-        throw new ApiError(404,"Unable to get followers and followings")
+    ]);
+
+    if (!getFollowersAndFollowings || getFollowersAndFollowings.length === 0) {
+        throw new ApiError(404, "Unable to get followers and followings");
     }
-    return res.status(200).json(new ApiResponse(200,getFollowersAndFollowings,"Followers and followings fetched successfully"))
-})
+
+    return res.status(200).json(new ApiResponse(200, getFollowersAndFollowings[0], "Followers and followings fetched successfully"));
+});
+
 export {registerUser, login,logout,editUserProfile,userProfileInformation}
