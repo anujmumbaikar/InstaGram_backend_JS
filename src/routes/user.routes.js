@@ -6,7 +6,5 @@ const router = Router()
 router.route("/register").post(registerUser)
 router.route("/login").post(login)
 router.route("/logout").post(verifyJWT,logout)
-router.route("/edit-user-profile").put(verifyJWT,editUserProfile)
-
-
+router.route("/edit-user-profile").put(verifyJWT,upload.single('avatar'),editUserProfile)
 export default router

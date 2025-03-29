@@ -1,8 +1,10 @@
 import {ApiError} from "../utils/apiError.js";
 import {ApiResponse} from "../utils/apiResponse.js";
 import {User} from "../models/user.model.js";
+import { Post } from "../models/post.model.js";
 import {asyncHandler} from '../utils/asyncHandler.js';
 import validator from "validator";
+import { uploadOnCloudinary } from "../../../02_backend/src/utils/cloudinary.js";
 
 const generateAccessAndRefreshTokens = async(userId)=>{
     try {
@@ -73,7 +75,7 @@ const login = asyncHandler(async (req, res) => {
         secure:true,
     }
     res.status(200).cookie("refreshToken", refreshToken, options).cookie("accessToken", accessToken, options)
-    .json(new ApiResponse(200,"User logged in successfully"))
+    .json(new ApiResponse(200,userLoggedIn,"User logged in successfully"))
 })
 const logout = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(
@@ -118,8 +120,16 @@ const editUserProfile = asyncHandler(async (req, res) => {
     if (password && user.password && await user.isPasswordCorrect(password)) {
         throw new ApiError(400, "New password cannot be the same as the old password");
     }
-
     const updates = {};
+    if (req.file?.path) {
+        const avatarLocalFilePath = req.file.path;
+        const uploadAvatar = await uploadOnCloudinary(avatarLocalFilePath);
+    
+        if (!uploadAvatar) {
+            throw new ApiError(400, "Unable to upload avatar on Cloudinary!");
+        }
+        updates.avatar = uploadAvatar.url;
+    }
     if (fullname) updates.fullname = fullname;
     if (username) updates.username = username;
     if (email) updates.email = email;
@@ -131,18 +141,15 @@ const editUserProfile = asyncHandler(async (req, res) => {
 
     const updatedUser = await User.findByIdAndUpdate(
         req.user._id,
-        {
-            $set: updates,
-        },
+        { $set: updates },
         { new: true, runValidators: true }
     ).select("-password -refreshToken");
-
     if (!updatedUser) {
         throw new ApiError(500, "Failed to update user profile");
     }
-
     return res
         .status(200)
         .json(new ApiResponse(200, updatedUser, "Account details updated successfully"));
 });
+
 export {registerUser, login,logout,editUserProfile}

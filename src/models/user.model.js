@@ -36,10 +36,6 @@ const userSchema = new Schema({
     bio:{
         type:String,
     },
-    post:{
-        type:Schema.Types.ObjectId,
-        ref:'Post',
-    },
     refreshToken:{
         type:String,
     },
