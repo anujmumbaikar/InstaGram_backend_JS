@@ -73,10 +73,18 @@ const getPostById = asyncHandler(async (req, res) => {
                 as: "comments"
             }
         },
+
+        {
+            $addFields: {
+                likedUserIds: "$likes.user", 
+                commentedUserIds: "$comments.user" 
+            }
+        },
+ 
         {
             $lookup: {
                 from: "users",
-                localField: "likes.user",
+                localField: "likedUserIds",
                 foreignField: "_id",
                 as: "likedUsers"
             }
@@ -84,7 +92,7 @@ const getPostById = asyncHandler(async (req, res) => {
         {
             $lookup: {
                 from: "users",
-                localField: "comments.user",
+                localField: "commentedUserIds",
                 foreignField: "_id",
                 as: "commentedUsers"
             }
@@ -129,6 +137,7 @@ const getPostById = asyncHandler(async (req, res) => {
             }
         }
     ]);
+
     if (!postInformation || postInformation.length === 0) {
         throw new ApiError(404, "Post not found");
     }
