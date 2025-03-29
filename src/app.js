@@ -14,7 +14,9 @@ app.use(express.static('public'));
 
 import userRouter from './routes/user.routes.js';
 import { postRouter } from './routes/post.routes.js';
+import { followRouter } from './routes/follow.routes.js';
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/posts', postRouter);
+app.use('/api/v1/follow', followRouter);
 
 export {app}
