@@ -156,4 +156,12 @@ const getUserPosts = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, posts, "User posts fetched successfully"));
 });
 
-export {postUpload,deletePost,getPostById,getUserPosts}
+const getAllPosts = asyncHandler(async (req, res) => {
+    const posts = await Post.find().sort({ createdAt: -1 });
+    if (!posts) {
+        throw new ApiError(404, "No posts found");
+    }
+    return res.status(200).json(new ApiResponse(200, posts, "All posts fetched successfully"));
+})
+
+export {postUpload,deletePost,getPostById,getUserPosts,getAllPosts}
